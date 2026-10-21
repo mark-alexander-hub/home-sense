@@ -16,6 +16,22 @@ and no internet permission at all, so nothing can leave the phone.
 </p>
 <p align="center"><sub>The Wi-Fi Walk picture is the built-in demo walk; the network name in it is made up.</sub></p>
 
+## How to use
+
+**Wi-Fi Walk:** stand by the router, tap *I'm at the router*, tap *Start walk*, hold the phone in front of
+you and walk slowly through every room and back (tap *Turned left / right* at corners on phones without
+a gyroscope). Tap *Done*: cross = weakest spot, arrow = where to move the router, star = where an extender
+goes. *Share map* sends it on.
+
+**Drill Safe:** hold the phone in the air two seconds, then flat on the wall, sliding slowly with the top
+edge leading. Green clear, amber metal nearby, red metal here. It finds metal, not electricity: use a
+tester pen for live wires and never drill in line with a switch or socket.
+
+**Mosquito Radar:** fan and AC off, three quiet seconds, then sweep the phone slowly with the microphone
+end leading. It says Warmer or Colder and pulses faster as the buzz gets louder.
+
+The same guide is inside the app: the **How to use** card on the home screen.
+
 ## Wi-Fi Walk
 
 Hold the phone in front of you and walk slowly through your home. Home Sense counts your steps,
