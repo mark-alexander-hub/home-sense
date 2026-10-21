@@ -110,6 +110,7 @@ class MosquitoActivity : AppCompatActivity() {
         val power = DoubleArray(N / 2)
         val noise = DoubleArray(N / 2)
         var learned = 0
+        val recent = ArrayDeque<Int>()
         val learnFrames = RATE * 3 / HOP
         val binHz = RATE.toDouble() / N
         val lo = (LOW_HZ / binHz).toInt(); val hi = (HIGH_HZ / binHz).toInt()
@@ -126,7 +127,7 @@ class MosquitoActivity : AppCompatActivity() {
                 fft.transform(re, im)
                 for (k in 0 until N / 2) power[k] = re[k] * re[k] + im[k] * im[k] + 1e-3
 
-                if (relearn) { relearn = false; learned = 0 }
+                if (relearn) { relearn = false; learned = 0; recent.clear() }
                 if (learned < learnFrames) {
                     for (k in noise.indices) noise[k] = if (learned == 0) power[k] else noise[k] + (power[k] - noise[k]) / (learned + 1)
                     learned++
@@ -144,7 +145,15 @@ class MosquitoActivity : AppCompatActivity() {
                 val tonal = power[best] / around[around.size / 2] > 8.0
                 // ...and has a second harmonic.
                 val h2 = (2 * best - 2..2 * best + 2).filter { it < N / 2 }.maxOfOrNull { power[it] / noise[it] } ?: 0.0
-                val db = if (tonal && bestSnr > 4.0 && h2 > 2.0) (10 * log10(bestSnr)).toFloat() else 0f
+                // ...and is the lowest note: voices and music have their root below the band, so their
+                // overtones land in it with a strong partner at half or a third of the frequency.
+                val sub = listOf(best / 2, best / 3).flatMap { it - 1..it + 1 }.filter { it > 0 }.maxOf { power[it] / noise[it] }
+                val candidate = tonal && bestSnr > 4.0 && h2 > 2.0 && sub < bestSnr * 0.25
+                // ...and holds steady: a wingbeat stays within a few hertz for half a second, speech wanders.
+                recent.addLast(if (candidate) best else -1)
+                while (recent.size > 8) recent.removeFirst()
+                val steady = candidate && recent.count { it >= 0 && kotlin.math.abs(it - best) <= 3 } >= 5
+                val db = if (steady) (10 * log10(bestSnr)).toFloat() else 0f
                 publish(db, (best * binHz).toFloat(), power, noise, binHz)
 
                 // Keep learning the room slowly while nothing is buzzing, so a moving phone doesn't drift.
