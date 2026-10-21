@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="paper">#FBF7EF</color>
+    <color name="card">#FFFDF8</color>
+    <color name="ink">#2B2A28</color>
+    <color name="dim">#7A756C</color>
+    <color name="accent">#2F7D6D</color>
+    <color name="night">#0B0B0B</color>
+    <color name="night_text">#9A948A</color>
+    <color name="icon_bg">#2F7D6D</color>
+</resources>
