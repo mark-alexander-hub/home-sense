@@ -27,9 +27,9 @@ import kotlin.math.min
 import kotlin.math.sqrt
 
 /**
- * Steel bars and nails bend the earth's magnetic field; a wire carrying current makes its own field
- * that flickers at 50 Hz. The compass chip sees both. Plain copper with nothing switched on, and
- * plastic pipes, are invisible to it, and the screen says so.
+ * Steel bars, nails, screws and metal conduit bend the earth's magnetic field, and the compass chip
+ * sees that. It can't see copper wire or plastic pipe, and phone compasses are filtered too heavily to
+ * catch the 50 Hz field of a live cable (tested on a Pixel), so the screen says that plainly.
  */
 class DrillSafeActivity : AppCompatActivity(), SensorEventListener {
     private lateinit var sensors: SensorManager
@@ -46,14 +46,7 @@ class DrillSafeActivity : AppCompatActivity(), SensorEventListener {
     private var baseline = Float.NaN
     private val calib = ArrayList<Float>()
     private var calibUntil = 0L
-    private var avg = Float.NaN
     private var dev = 0f
-    private var flick = 0f
-    private var flickNoise = Float.NaN
-    private val flickWin = ArrayDeque<Float>()
-    private var samples = 0
-    private var rateFrom = 0L
-    private var rate = 0f
     private var lastLevel = 0
     val history = ArrayDeque<Float>()
 
@@ -73,7 +66,7 @@ class DrillSafeActivity : AppCompatActivity(), SensorEventListener {
                 button("Recalibrate", outlined = true) { calibrate() }
                 soundBtn = button("Sound on", outlined = true) { sound = !sound; soundBtn.text = if (sound) "Sound on" else "Sound off" }
             }
-            body("It can't see plastic pipes, or copper wire with nothing switched on. Switch on the lights and sockets on that wall first, and when in doubt, don't drill.", 12f, dim = true)
+            body("It finds metal, not electricity: it can't see copper wire or plastic pipes. Wiring usually runs straight up or down from switches and sockets, so never drill in line with them. For live wires, a ₹150 tester pen is the right tool.", 12f, dim = true)
         }
         if (mag == null) {
             verdict.text = "This phone has no compass"
@@ -85,7 +78,7 @@ class DrillSafeActivity : AppCompatActivity(), SensorEventListener {
     override fun onResume() {
         super.onResume()
         if (mag == null) return
-        sensors.registerListener(this, mag, SensorManager.SENSOR_DELAY_FASTEST)
+        sensors.registerListener(this, mag, SensorManager.SENSOR_DELAY_GAME)
         tone = runCatching { ToneGenerator(AudioManager.STREAM_MUSIC, 70) }.getOrNull()
         calibrate()
         main.post(clicker)
@@ -100,7 +93,7 @@ class DrillSafeActivity : AppCompatActivity(), SensorEventListener {
 
     private fun calibrate() {
         if (mag == null) return
-        calib.clear(); baseline = Float.NaN; flickNoise = Float.NaN
+        calib.clear(); baseline = Float.NaN
         calibUntil = SystemClock.elapsedRealtime() + 2000
         verdict.text = "Calibrating..."
         detail.text = "Hold the phone in the air, away from the wall and anything metal, for two seconds."
@@ -109,21 +102,10 @@ class DrillSafeActivity : AppCompatActivity(), SensorEventListener {
     override fun onSensorChanged(e: SensorEvent) {
         val m = sqrt(e.values[0] * e.values[0] + e.values[1] * e.values[1] + e.values[2] * e.values[2])
         val now = SystemClock.elapsedRealtime()
-        if (rateFrom == 0L) rateFrom = now
-        samples++
-        if (now - rateFrom >= 2000) { rate = samples * 1000f / (now - rateFrom); samples = 0; rateFrom = now }
-
-        // Flicker: how much the field wobbles around its own short average. Mains current makes it shake.
-        avg = if (avg.isNaN()) m else avg * 0.9f + m * 0.1f
-        flickWin.addLast((m - avg) * (m - avg))
-        while (flickWin.size > 40) flickWin.removeFirst()
-        flick = sqrt(flickWin.average().toFloat())
-
         if (now < calibUntil) { calib += m; return }
         if (baseline.isNaN()) {
             if (calib.isEmpty()) return
             baseline = calib.sorted()[calib.size / 2]
-            flickNoise = max(flick, 0.05f)
         }
         dev = abs(m - baseline)
         history.addLast(dev)
@@ -131,11 +113,8 @@ class DrillSafeActivity : AppCompatActivity(), SensorEventListener {
         show()
     }
 
-    private val liveCapable get() = rate >= 80f
-    private val live get() = liveCapable && !flickNoise.isNaN() && flick > flickNoise * 4f && flick > 0.3f
-
     private fun level(): Int = when {
-        live || dev >= 12f -> 2
+        dev >= 12f -> 2
         dev >= 4f -> 1
         else -> 0
     }
@@ -143,13 +122,11 @@ class DrillSafeActivity : AppCompatActivity(), SensorEventListener {
     private fun show() {
         val lv = level()
         verdict.text = when {
-            live -> "Live wire likely. Don't drill here."
             lv == 2 -> "Metal here. Don't drill."
             lv == 1 -> "Something metal nearby. Go slow."
             else -> "Clear"
         }
-        val liveNote = if (liveCapable) "live-wire check on" else "this phone's compass is too slow to spot live wires (${rate.toInt()} Hz)"
-        detail.text = "%.1f µT off normal · %s".format(dev, liveNote)
+        detail.text = "%.1f µT off normal".format(dev)
         if (lv == 2 && lastLevel < 2) vibrate()
         lastLevel = lv
         gauge.level = lv
@@ -199,7 +176,7 @@ class DrillSafeActivity : AppCompatActivity(), SensorEventListener {
             p.textSize = r * 0.14f
             c.drawText("µT", cx, cy + r * 0.45f, p)
 
-            // Trace: the last ~4 s, with the 4 and 12 µT lines.
+            // Trace: the last few seconds, with the 4 and 12 µT lines.
             val top = discH + context.dp(8); val bottom = height - context.dp(4).toFloat()
             val span = bottom - top
             val full = 25f
