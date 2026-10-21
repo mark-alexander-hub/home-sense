@@ -22,6 +22,7 @@ class WifiWalkActivity : AppCompatActivity() {
     private lateinit var tip: TextView
     private lateinit var startBtn: MaterialButton
     private lateinit var strideLabel: TextView
+    private var demo = false
 
     private val askLocation = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
@@ -60,7 +61,8 @@ class WifiWalkActivity : AppCompatActivity() {
             askLocation.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         if (tracker.turnSource == WalkTracker.MANUAL) tip.text = "$TIP\n\nThis phone can't sense turning, so tap Turned left or Turned right at each corner."
         stride(0f)
-        if (intent.getBooleanExtra("demo", false)) {
+        demo = intent.getBooleanExtra("demo", false)
+        if (demo) {
             tracker.loadDemo()
             map.advice = advise(tracker.points, tracker.router).also { tip.text = it.text }
         }
@@ -89,6 +91,13 @@ class WifiWalkActivity : AppCompatActivity() {
     }
 
     private fun refresh() {
+        if (demo) {
+            // The demo walk is made up, so the network shown with it is too.
+            status.text = "HomeWiFi: -46 dBm, excellent\n${tracker.steps} steps, about ${"%.1f".format(tracker.steps * tracker.stride)} m"
+            startBtn.text = "Keep walking"
+            map.invalidate()
+            return
+        }
         val net = tracker.ssid ?: if (tracker.rssi == WalkTracker.NO_SIGNAL) "No Wi-Fi" else "Wi-Fi"
         val sig = if (tracker.rssi == WalkTracker.NO_SIGNAL) "not connected" else "${tracker.rssi} dBm, ${Signal.words(tracker.rssi)}"
         val walked = "%.1f".format(tracker.steps * tracker.stride)
